@@ -2,11 +2,11 @@ const { defineConfig } = require("@adobe/aio-commerce-lib-app/config");
 
 module.exports = defineConfig({
   metadata: {
-    id: "my-application",
-    displayName: "My Application",
+    id: "kailash-accs-sample-app",
+    displayName: "Kailash ACCS Sample App",
     version: "1.0.0",
     description:
-      "A custom Adobe Commerce application. Fill description for your app.",
+      "A sample Adobe Commerce application demonstrating the use of webhooks/events.",
   },
   webhooks: [
     {

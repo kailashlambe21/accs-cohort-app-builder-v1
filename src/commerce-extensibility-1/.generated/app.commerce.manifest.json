@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "description": "A custom Adobe Commerce application. Fill description for your app.",
-    "displayName": "My Application",
-    "id": "my-application",
+    "description": "A sample Adobe Commerce application demonstrating the use of webhooks/events.",
+    "displayName": "Kailash ACCS Sample App",
+    "id": "kailash-accs-sample-app",
     "version": "1.0.0"
   },
   "webhooks": [
