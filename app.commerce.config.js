@@ -10,30 +10,42 @@ module.exports = defineConfig({
   },
   webhooks: [
     {
-      label: "Sample Webhook",
-      description: "A sample Commerce Webhook handler.",
-      runtimeAction: "my-package/handle-webhook",
-      category: "modification",
+      label: "Product Validation",
+      description: "Validates product data before save.",
+      category: "validation",
+      runtimeAction: "course-labs/validate-product",
       webhook: {
-        webhook_method: "plugin.sample.event",
-        webhook_type: "after",
-        batch_name: "my_app",
-        hook_name: "sample_hook",
+        webhook_method: "observer.catalog_product_save_before",
+        webhook_type: "before",
+        batch_name: "product_validation_batch",
+        hook_name: "validate_product",
         method: "POST",
-      },
-    },
-    {
-      label: "Sample Webhook with URL",
-      description: "A sample Commerce Webhook handler using an explicit URL.",
-      category: "modification",
-      webhook: {
-        webhook_method: "plugin.sample.event",
-        webhook_type: "after",
-        batch_name: "my_app",
-        hook_name: "sample_hook_url",
-        method: "POST",
-        url: "https://example.com/webhook",
+        fields: [
+          { name: "sku", source: "product.sku" },
+          { name: "name", source: "product.name" },
+        ],
       },
     },
   ],
+  eventing: {
+    commerce: [
+      {
+        provider: {
+          label: "Commerce Events",
+          description: "Events from Adobe Commerce for order processing.",
+        },
+        events: [
+          {
+            name: "observer.sales_order_save_after",
+            label: "Order Saved",
+            description: "Triggered when an order is saved in Commerce.",
+            runtimeActions: ["course-labs/order-event-consumer"],
+            fields: [
+              { name: "order_id" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 });

@@ -1,4 +1,29 @@
 {
+  "eventing": {
+    "commerce": [
+      {
+        "events": [
+          {
+            "description": "Triggered when an order is saved in Commerce.",
+            "fields": [
+              {
+                "name": "order_id"
+              }
+            ],
+            "label": "Order Saved",
+            "name": "observer.sales_order_save_after",
+            "runtimeActions": [
+              "course-labs/order-event-consumer"
+            ]
+          }
+        ],
+        "provider": {
+          "description": "Events from Adobe Commerce for order processing.",
+          "label": "Commerce Events"
+        }
+      }
+    ]
+  },
   "metadata": {
     "description": "A sample Adobe Commerce application demonstrating the use of webhooks/events.",
     "displayName": "Kailash ACCS Sample App",
@@ -7,29 +32,26 @@
   },
   "webhooks": [
     {
-      "category": "modification",
-      "description": "A sample Commerce Webhook handler.",
-      "label": "Sample Webhook",
-      "runtimeAction": "my-package/handle-webhook",
+      "category": "validation",
+      "description": "Validates product data before save.",
+      "label": "Product Validation",
+      "runtimeAction": "course-labs/validate-product",
       "webhook": {
-        "batch_name": "my_app",
-        "hook_name": "sample_hook",
+        "batch_name": "product_validation_batch",
+        "fields": [
+          {
+            "name": "sku",
+            "source": "product.sku"
+          },
+          {
+            "name": "name",
+            "source": "product.name"
+          }
+        ],
+        "hook_name": "validate_product",
         "method": "POST",
-        "webhook_method": "plugin.sample.event",
-        "webhook_type": "after"
-      }
-    },
-    {
-      "category": "modification",
-      "description": "A sample Commerce Webhook handler using an explicit URL.",
-      "label": "Sample Webhook with URL",
-      "webhook": {
-        "batch_name": "my_app",
-        "hook_name": "sample_hook_url",
-        "method": "POST",
-        "url": "https://example.com/webhook",
-        "webhook_method": "plugin.sample.event",
-        "webhook_type": "after"
+        "webhook_method": "observer.catalog_product_save_before",
+        "webhook_type": "before"
       }
     }
   ]
