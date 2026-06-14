@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "description": "A custom Adobe Commerce application. Fill description for your app.",
+    "displayName": "My Application",
+    "id": "my-application",
+    "version": "1.0.0"
+  },
+  "webhooks": [
+    {
+      "category": "modification",
+      "description": "A sample Commerce Webhook handler.",
+      "label": "Sample Webhook",
+      "runtimeAction": "my-package/handle-webhook",
+      "webhook": {
+        "batch_name": "my_app",
+        "hook_name": "sample_hook",
+        "method": "POST",
+        "webhook_method": "plugin.sample.event",
+        "webhook_type": "after"
+      }
+    },
+    {
+      "category": "modification",
+      "description": "A sample Commerce Webhook handler using an explicit URL.",
+      "label": "Sample Webhook with URL",
+      "webhook": {
+        "batch_name": "my_app",
+        "hook_name": "sample_hook_url",
+        "method": "POST",
+        "url": "https://example.com/webhook",
+        "webhook_method": "plugin.sample.event",
+        "webhook_type": "after"
+      }
+    }
+  ]
+}
