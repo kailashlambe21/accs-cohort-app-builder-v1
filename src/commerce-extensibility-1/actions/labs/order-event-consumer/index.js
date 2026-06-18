@@ -1,5 +1,5 @@
 const { Core } = require('@adobe/aio-sdk');
-const stateLib = require('@adobe/aio-lib-state');
+const libDb = require('@adobe/aio-lib-db');
 
 const IMS_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3';
 const DEFAULT_SCOPES =
@@ -74,9 +74,20 @@ async function main (params) {
 
     logger.info(`Event received: ${eventType}, ID: ${eventId}`);
 
-    const state = await stateLib.init();
-    const existing = await state.get(`event-${eventId}`);
-    if (existing && existing.value) {
+    const accessToken = await getImsAccessToken(params);
+
+    const dbBase = await libDb.init({ token: accessToken, region: params.AIO_DB_REGION });
+    const db = await dbBase.connect();
+    const ordersCollection = db.collection('enriched_orders');
+    const eventsCollection = db.collection('processed_events');
+
+    let existing = null;
+    try {
+      existing = await eventsCollection.findOne({ _id: `event-${eventId}` });
+    } catch (e) {
+      if (!e.message?.includes('Document not found')) throw e;
+    }
+    if (existing) {
       logger.info(`Event ${eventId} already processed, skipping`);
       return {
         statusCode: 200,
@@ -99,21 +110,16 @@ async function main (params) {
     logger.info(`Processing order: ${orderId}`);
 
     const baseUrl = params.COMMERCE_API_BASE_URL.replace(/\/$/, '');
-    const accessToken = await getImsAccessToken(params);
-
     const orderUrl = `${baseUrl}/V1/orders/${encodeURIComponent(orderId)}`;
 
-    const orderResponse = await fetch(
-      orderUrl,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'x-api-key': params.IMS_OAUTH_S2S_CLIENT_ID,
-          'x-gw-ims-org-id': params.IMS_OAUTH_S2S_ORG_ID,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const orderResponse = await fetch(orderUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'x-api-key': params.IMS_OAUTH_S2S_CLIENT_ID,
+        'x-gw-ims-org-id': params.IMS_OAUTH_S2S_ORG_ID,
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!orderResponse.ok) {
       logger.error(`Commerce API returned ${orderResponse.status} for order ${orderId}`);
@@ -126,6 +132,7 @@ async function main (params) {
     const order = await orderResponse.json();
 
     const enrichedOrder = {
+      _id: String(orderId),
       orderId: order.entity_id,
       incrementId: order.increment_id,
       status: order.status,
@@ -145,27 +152,17 @@ async function main (params) {
       },
     };
 
-    logger.info('Enriched order:', JSON.stringify(enrichedOrder));
+    logger.info(`Enriched order: ${JSON.stringify(enrichedOrder)}`);
 
-    await state.put(`order-${orderId}`, JSON.stringify(enrichedOrder), {
-      ttl: 604800,
-    });
+    await ordersCollection.replaceOne(
+      { _id: String(orderId) },
+      enrichedOrder,
+      { upsert: true }
+    );
 
-    const knownOrdersResult = await state.get('known-order-ids');
-    let knownOrderIds = [];
-    if (knownOrdersResult && knownOrdersResult.value) {
-      knownOrderIds = JSON.parse(knownOrdersResult.value);
-    }
-    if (!knownOrderIds.includes(String(orderId))) {
-      knownOrderIds.push(String(orderId));
-      if (knownOrderIds.length > 100) {
-        knownOrderIds = knownOrderIds.slice(-100);
-      }
-      await state.put('known-order-ids', JSON.stringify(knownOrderIds), { ttl: 604800 });
-    }
-
-    await state.put(`event-${eventId}`, JSON.stringify({ processedAt: new Date().toISOString() }), {
-      ttl: 86400,
+    await eventsCollection.insertOne({
+      _id: `event-${eventId}`,
+      processedAt: new Date().toISOString(),
     });
 
     logger.info(`Successfully processed event ${eventId} for order ${orderId}`);
@@ -180,7 +177,8 @@ async function main (params) {
       },
     };
   } catch (error) {
-    logger.error('Event processing failed:', error.message, error.stack);
+    logger.error(`Event processing failed: ${error?.message || String(error)}`);
+    logger.error(`Stack: ${error?.stack || 'none'}`);
     return {
       statusCode: 500,
       body: { error: 'Event processing failed' },
